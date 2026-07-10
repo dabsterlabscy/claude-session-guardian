@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig, sense, stateDir, killSwitchActive, PLUGIN_ROOT, fmtLocal, readStdinJson, log } from './lib.mjs';
+import { notify } from './notify.mjs';
 
 function emit(payload) {
   if (payload) process.stdout.write(JSON.stringify(payload));
@@ -53,6 +54,8 @@ ${armLine}
 ${config.autonomous === false ? '' : `Guardian will auto-resume this session shortly after ${resetLocal}. To cancel, create an empty file named ${killName} in ${cwd}.`}`;
 
   log(`brake fired: ${usage.usedPct}% (${eventName}, session ${sessionId}), reset ${usage.resetIso}`);
+  const armed = config.autonomous === false ? 'checkpoint only' : `auto-resume ~${resetLocal}`;
+  notify('⚠️ Session Guardian', `~${usage.usedPct}% used · checkpointing · ${armed}`);
   emit({ hookSpecificOutput: { hookEventName: eventName, additionalContext: context } });
 } catch (e) {
   // Never break the session over a monitoring failure.

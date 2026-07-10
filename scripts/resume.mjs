@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { loadConfig, stateDir, shortId, killSwitchActive, allowlistBlocks, cyclesLeft, consumeCycle, dataDir, log } from './lib.mjs';
+import { notify } from './notify.mjs';
 
 function arg(name, def = null) {
   const i = process.argv.indexOf(`--${name}`);
@@ -44,6 +45,7 @@ const left = consumeCycle(config, session);
 const prompt = config.resumePrompt || 'Auto-resume by Session Guardian. Read SESSION-STATE.md, do the next 1-2 planned steps, update the checkpoint, then stop.';
 
 log(`resuming session ${session} in ${cwd} (cycles left after this: ${left})`);
+notify('🛡️ Session Guardian', `Window reset — resuming your session in ${path.basename(cwd)}…`);
 
 const logFd = fs.openSync(path.join(dataDir(), 'guardian.log'), 'a');
 try {

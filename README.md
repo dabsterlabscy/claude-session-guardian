@@ -27,6 +27,8 @@ ccusage (sensor)  →  hook brake @ threshold  →  checkpoint file  →  schedu
 4. **Arm** — `scripts/arm-wakeup.mjs` schedules a one-shot OS task (Windows Task Scheduler / macOS `at` / Linux `at`) for just after the reset time.
 5. **Resume** — at reset, `scripts/resume.mjs` re-checks the guardrails and runs `claude --resume <id> -p` with a bounded prompt, continuing from the checkpoint. The resumed session runs the same hooks, so it re-checkpoints and re-arms — a self-sustaining loop until the work is done or `maxAutoCycles` is hit.
 
+**Desktop notifications:** you get a native toast when the brake fires (*"~87% used · checkpointing · auto-resume ~15:00"*) and again when the session auto-resumes — so you know what's happening even if you stepped away. Windows uses a dependency-free PowerShell toast; macOS uses `osascript`; Linux uses `notify-send`.
+
 ## Install
 
 Requires **Node.js** (for the scripts and ccusage) and **Claude Code**.
