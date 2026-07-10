@@ -16,7 +16,7 @@ const WIN_PS = [
 export function notify(title, body) {
   try {
     const env = { ...process.env, GUARDIAN_TOAST_TITLE: String(title || ''), GUARDIAN_TOAST_BODY: String(body || '') };
-    const opts = { detached: true, stdio: 'ignore', env };
+    const opts = { detached: true, stdio: 'ignore', env, windowsHide: true };
     let child;
     if (process.platform === 'win32') {
       child = spawn('powershell', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', WIN_PS], opts);

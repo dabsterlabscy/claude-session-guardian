@@ -95,7 +95,7 @@ export function consumeCycle(config, session) {
 function runCcusageRaw() {
   const args = ['blocks', '--active', '--json'];
   const win = process.platform === 'win32';
-  const opts = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 120000 };
+  const opts = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 120000, windowsHide: true };
   // Prefer a globally-installed ccusage (fast); fall back to npx (downloads once, then cached).
   // On Windows the bins are .cmd shims, so route through cmd.exe with explicit args (no shell:true).
   const attempts = win
@@ -168,7 +168,7 @@ export function senseNow(config) {
 export function refreshDetached() {
   try {
     const script = path.join(PLUGIN_ROOT, 'scripts', 'sense.mjs');
-    const child = spawn(process.execPath, [script, '--force'], { detached: true, stdio: 'ignore' });
+    const child = spawn(process.execPath, [script, '--force'], { detached: true, stdio: 'ignore', windowsHide: true });
     child.unref();
   } catch { /* ignore */ }
 }

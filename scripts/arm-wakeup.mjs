@@ -55,7 +55,7 @@ try {
       `$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable`,
       `Register-ScheduledTask -TaskName '${taskName}' -Action $a -Trigger $t -Settings $s -Force -Description 'Session Guardian auto-resume' | Out-Null`,
     ].join('; ');
-    execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { stdio: ['ignore', 'ignore', 'pipe'] });
+    execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-Command', ps], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
   } else if (process.platform === 'darwin' || process.platform === 'linux') {
     // Best-effort one-shot via `at`. HH:MM today (at figures out the date from context).
     const atTime = `${p(fire.getHours())}:${p(fire.getMinutes())}`;

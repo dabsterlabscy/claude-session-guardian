@@ -47,12 +47,12 @@ try {
   // If ccusage isn't installed at all, install it globally in the background (one-time).
   execFile(process.platform === 'win32' ? 'cmd' : 'ccusage',
     process.platform === 'win32' ? ['/c', 'ccusage', '--version'] : ['--version'],
-    { stdio: 'ignore' }, (err) => {
+    { stdio: 'ignore', windowsHide: true }, (err) => {
       if (!err) return; // ccusage present
       log('bootstrap: ccusage missing, installing globally in background');
       const ic = execFile(process.platform === 'win32' ? 'cmd' : 'npm',
         process.platform === 'win32' ? ['/c', 'npm', 'i', '-g', 'ccusage'] : ['i', '-g', 'ccusage'],
-        { stdio: 'ignore' }, (e2) => log(e2 ? `bootstrap: ccusage install failed (${e2.message})` : 'bootstrap: ccusage installed'));
+        { stdio: 'ignore', windowsHide: true }, (e2) => log(e2 ? `bootstrap: ccusage install failed (${e2.message})` : 'bootstrap: ccusage installed'));
       ic.unref();
     });
 } catch (e) {

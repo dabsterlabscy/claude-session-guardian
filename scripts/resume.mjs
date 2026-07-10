@@ -20,7 +20,7 @@ const taskName = `SessionGuardian_${shortId(session)}`;
 function deleteTask() {
   try {
     if (process.platform === 'win32') {
-      execFileSync('schtasks', ['/delete', '/tn', taskName, '/f'], { stdio: 'ignore' });
+      execFileSync('schtasks', ['/delete', '/tn', taskName, '/f'], { stdio: 'ignore', windowsHide: true });
     }
   } catch { /* task may already be gone */ }
 }
@@ -50,7 +50,7 @@ notify('🛡️ Session Guardian', `Window reset — resuming your session in ${
 const logFd = fs.openSync(path.join(dataDir(), 'guardian.log'), 'a');
 try {
   const args = ['--resume', session, '-p', '--dangerously-skip-permissions'];
-  const opts = { cwd, input: prompt, stdio: ['pipe', logFd, logFd], timeout: 1000 * 60 * 60 * 5 };
+  const opts = { cwd, input: prompt, stdio: ['pipe', logFd, logFd], timeout: 1000 * 60 * 60 * 5, windowsHide: true };
   const res = process.platform === 'win32'
     ? spawnSync('cmd', ['/c', 'claude', ...args], opts)
     : spawnSync('claude', args, opts);
