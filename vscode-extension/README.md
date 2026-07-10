@@ -2,7 +2,10 @@
 
 Companion VS Code extension for the [Session Guardian](https://github.com/dabsterlabscy/claude-session-guardian) Claude Code plugin.
 
-Claude Code's built-in status line only renders in the **terminal**, not the VS Code extension. This adds a native VS Code **status bar item** (bottom-right) showing your Claude usage: `⏱ 62% · 15:00`.
+Claude Code's built-in status line only renders in the **terminal**, not the VS Code extension. This adds two native, **zero-token** VS Code surfaces:
+
+- A **status bar item** (bottom-right): `⏱ 62% · 15:00` — click it to open the gauge.
+- A **sidebar gauge** (Session Guardian icon in the Activity Bar): a graphical panel with a big %, colored bar, reset time, and the weekly window.
 
 - Reads the usage cache the Claude Code plugin maintains (`~/.claude/plugins/data/session-guardian-dabster-labs/sense-cache.json`).
 - Falls back to running `ccusage` directly when the cache is missing/stale, so it works even outside a Claude Code session.

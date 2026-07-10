@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "session-guardian",
   "displayName": "Session Guardian",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Reads Claude Code's official 5-hour + weekly usage from the status line, brakes and checkpoints before you hit the limit, and auto-resumes the session when the window resets.",
   "author": { "name": "Dabster Labs", "email": "dabsterlabscy@gmail.com" },
   "homepage": "https://github.com/dabsterlabscy/claude-session-guardian",

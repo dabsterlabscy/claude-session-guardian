@@ -1,7 +1,7 @@
 {
   "thresholdPct": 91,
   "milestonePcts": [75, 85],
-  "chatBannerPct": 50,
+  "chatBannerPct": 85,
   "checkpointExtra": "Also update the project files/notes you normally maintain (e.g. a daily .md, README, task log, or a commit) so the work is saved the way you work.",
   "autonomous": true,
   "maxAutoCycles": 6,

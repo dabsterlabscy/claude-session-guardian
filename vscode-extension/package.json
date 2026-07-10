@@ -1,8 +1,8 @@
 {
   "name": "session-guardian-statusbar",
-  "displayName": "Session Guardian Status Bar",
-  "description": "Shows Claude Code 5-hour + weekly usage in the VS Code status bar (companion to the Session Guardian Claude Code plugin).",
-  "version": "0.1.0",
+  "displayName": "Session Guardian",
+  "description": "Shows Claude Code 5-hour + weekly usage in the VS Code status bar and a sidebar gauge (companion to the Session Guardian Claude Code plugin).",
+  "version": "0.2.0",
   "publisher": "dabster-labs",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/dabsterlabscy/claude-session-guardian" },
@@ -11,6 +11,16 @@
   "main": "./extension.js",
   "activationEvents": ["onStartupFinished"],
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        { "id": "sessionGuardian", "title": "Session Guardian", "icon": "media/guardian.svg" }
+      ]
+    },
+    "views": {
+      "sessionGuardian": [
+        { "id": "sessionGuardian.gauge", "name": "Usage", "type": "webview" }
+      ]
+    },
     "commands": [
       { "command": "sessionGuardian.showDetail", "title": "Session Guardian: Show Usage Detail" },
       { "command": "sessionGuardian.refresh", "title": "Session Guardian: Refresh Now" }
@@ -18,10 +28,10 @@
     "configuration": {
       "title": "Session Guardian",
       "properties": {
-        "sessionGuardian.warnPct": { "type": "number", "default": 80, "description": "Color the status bar item at/above this %." },
-        "sessionGuardian.critPct": { "type": "number", "default": 95, "description": "Error color + warning toast at/above this %." },
-        "sessionGuardian.refreshSeconds": { "type": "number", "default": 30, "description": "How often to refresh the status bar from the cache." },
-        "sessionGuardian.ccusageFallback": { "type": "boolean", "default": true, "description": "When the plugin cache is missing/stale, run ccusage directly to estimate usage." }
+        "sessionGuardian.warnPct": { "type": "number", "default": 80, "description": "Yellow at/above this %." },
+        "sessionGuardian.critPct": { "type": "number", "default": 95, "description": "Red + warning toast at/above this %." },
+        "sessionGuardian.refreshSeconds": { "type": "number", "default": 30, "description": "How often to refresh from the cache." },
+        "sessionGuardian.ccusageFallback": { "type": "boolean", "default": true, "description": "Run ccusage directly when the plugin cache is missing/stale." }
       }
     }
   }
