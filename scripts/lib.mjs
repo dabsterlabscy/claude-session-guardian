@@ -56,6 +56,48 @@ export function log(msg) {
   try { fs.appendFileSync(path.join(dataDir(), 'guardian.log'), line); } catch { /* ignore */ }
 }
 
+// --- structured event log (ground truth for the "while you were away" summary) ---
+// Each line: {ts, type, ...}. Types: brake_fired, resume_scheduled, resume_fired, resume_completed.
+export function logEvent(type, data = {}) {
+  try { fs.appendFileSync(path.join(dataDir(), 'events.jsonl'), JSON.stringify({ ts: Date.now(), type, ...data }) + '\n'); } catch { /* ignore */ }
+}
+
+export function readEvents() {
+  try {
+    return fs.readFileSync(path.join(dataDir(), 'events.jsonl'), 'utf8')
+      .split('\n').filter(Boolean)
+      .map((l) => { try { return JSON.parse(l); } catch { return null; } })
+      .filter(Boolean);
+  } catch { return []; }
+}
+
+export function reportPath() { return path.join(dataDir(), 'SESSION-REPORT.md'); }
+
+// Watermark so the greeting is shown once per batch of resumes, not every session.
+export function getGreetWatermark() { const r = readJson(path.join(dataDir(), 'greeted.json')); return (r && r.at) || 0; }
+export function setGreetWatermark(at) { try { fs.writeFileSync(path.join(dataDir(), 'greeted.json'), JSON.stringify({ at })); } catch { /* ignore */ } }
+
+// Cross-device push via ntfy (no account, no n8n, no server unless you self-host).
+// Off unless config.notifyTopic is set. Fire-and-forget; never throws.
+export async function pushNotify(config, title, message) {
+  const topic = config && config.notifyTopic;
+  if (!topic) return;
+  const base = (config.notifyUrl || 'https://ntfy.sh').replace(/\/+$/, '');
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    // HTTP headers must be Latin-1 (ByteString) — strip emoji/multibyte from the Title.
+    const safeTitle = String(title || 'Session Guardian').replace(/[^\x20-\xFF]/g, '').trim() || 'Session Guardian';
+    await fetch(`${base}/${encodeURIComponent(topic)}`, {
+      method: 'POST',
+      body: String(message || ''), // body is UTF-8, emoji here is fine
+      headers: { Title: safeTitle, Tags: 'shield', Priority: 'default' },
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+  } catch { /* best effort */ }
+}
+
 // Kill switch: a file with the configured name in the project dir OR the data dir disables everything.
 export function killSwitchActive(config, cwd) {
   const name = config.killSwitchFile || 'STOP-GUARDIAN';

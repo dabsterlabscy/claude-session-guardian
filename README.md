@@ -44,6 +44,14 @@ That's it — the `SessionStart` hook bootstraps everything automatically: insta
 
 The status line is self-healing (re-points to the current plugin path on each start) and never overrides a `statusLine` you set yourself. To manage it manually instead, set `"manageStatusLine": false` in the config.
 
+## "While you were away"
+
+When Guardian auto-resumes while you're away, you find out three ways, from one source of truth (a structured `events.jsonl` of real process exit codes — never Claude's optimistic self-report):
+
+- **On the next interactive session** — a `SessionStart` hook has Claude open its first reply with a short *"while you were away"* summary (leads with your repo state, then what shipped / failed / needs you). Fires **once** (watermarked), not per turn.
+- **A durable report** — each resumed cycle appends an honest entry to `SESSION-REPORT.md` (git state, real errors, where it stopped).
+- **On your phone (optional, no account/server/n8n)** — set `notifyTopic` to any unique string, install the free [ntfy](https://ntfy.sh) app, and subscribe to that topic. Guardian POSTs a one-line summary when a resume completes: *"Resumed & ran 'proj' — exited cleanly."* Self-host by pointing `notifyUrl` at your own ntfy server.
+
 ## Configuration
 
 Edit `~/.claude/session-guardian/guardian.config.json` (or `${CLAUDE_PLUGIN_DATA}/guardian.config.json`). See `guardian.config.default.json` for the full annotated list.

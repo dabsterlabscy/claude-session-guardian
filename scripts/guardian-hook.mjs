@@ -4,7 +4,7 @@
 // to checkpoint and arm autonomous resume. It never blocks — only adds context.
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadConfig, senseCached, stateDir, killSwitchActive, PLUGIN_ROOT, fmtLocal, readStdinJson, log } from './lib.mjs';
+import { loadConfig, senseCached, stateDir, killSwitchActive, PLUGIN_ROOT, fmtLocal, readStdinJson, log, logEvent } from './lib.mjs';
 import { notify } from './notify.mjs';
 
 function emit(payload) {
@@ -95,6 +95,7 @@ ${armLine}
 ${config.autonomous === false ? '' : `Guardian will auto-resume this session shortly after ${resetLocal}. To cancel, create an empty file named ${killName} in ${cwd}.`}`;
 
   log(`brake fired: ${usage.usedPct}% (${eventName}, session ${sessionId}), reset ${usage.resetIso}`);
+  logEvent('brake_fired', { session: sessionId, cwd, pct: usage.usedPct, resetIso: usage.resetIso });
   const armed = config.autonomous === false ? 'checkpoint only' : `auto-resume ~${resetLocal}`;
   notify('⚠️ Session Guardian', `~${usage.usedPct}% used · checkpointing · ${armed}`);
   emit({ hookSpecificOutput: { hookEventName: eventName, additionalContext: context } });

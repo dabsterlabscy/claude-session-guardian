@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync, execFileSync } from 'node:child_process';
-import { loadConfig, stateDir, shortId, killSwitchActive, allowlistBlocks, cyclesLeft, consumeCycle, dataDir, log } from './lib.mjs';
+import { loadConfig, stateDir, shortId, killSwitchActive, allowlistBlocks, cyclesLeft, consumeCycle, dataDir, log, logEvent, pushNotify, reportPath } from './lib.mjs';
 import { notify } from './notify.mjs';
 
 function arg(name, def = null) {
@@ -42,21 +42,45 @@ const checkpoint = path.join(statePath, 'SESSION-STATE.md');
 if (!fs.existsSync(checkpoint)) stop(`no checkpoint at ${checkpoint}; nothing to resume.`);
 
 const left = consumeCycle(config, session);
-const prompt = config.resumePrompt || 'Auto-resume by Session Guardian. Read SESSION-STATE.md, do the next 1-2 planned steps, update the checkpoint, then stop.';
+const project = path.basename(cwd);
+const basePrompt = config.resumePrompt || 'Auto-resume by Session Guardian. Read SESSION-STATE.md, do the next 1-2 planned steps, update the checkpoint, then stop.';
+// Ask the resumed session to append an HONEST per-cycle entry to the shared report for the
+// "while you were away" summary — reassurance-first, based on REAL command output, not guesses.
+const prompt = `${basePrompt}
+
+When done, append a short cycle entry to ${reportPath()} (create it if missing) with:
+- a timestamp and the project (${project});
+- what you accomplished, and what FAILED (include the real error — do NOT hide failures);
+- the repo state from an actual \`git status\` (branch, commit count, pushed or not, tree clean/dirty);
+- anything BLOCKED that needs the user;
+- exactly where you stopped and the single next action.
+Lead the entry with the repo state so it's reassuring at a glance.`;
 
 log(`resuming session ${session} in ${cwd} (cycles left after this: ${left})`);
-notify('🛡️ Session Guardian', `Window reset — resuming your session in ${path.basename(cwd)}…`);
+logEvent('resume_fired', { session, cwd, project });
+notify('🛡️ Session Guardian', `Window reset — resuming your session in ${project}…`);
 
 const logFd = fs.openSync(path.join(dataDir(), 'guardian.log'), 'a');
+let exitCode = null;
 try {
   const args = ['--resume', session, '-p', '--dangerously-skip-permissions'];
-  const opts = { cwd, input: prompt, stdio: ['pipe', logFd, logFd], timeout: 1000 * 60 * 60 * 5, windowsHide: true };
+  const opts = {
+    cwd, input: prompt, stdio: ['pipe', logFd, logFd], timeout: 1000 * 60 * 60 * 5, windowsHide: true,
+    env: { ...process.env, GUARDIAN_AUTONOMOUS: '1' }, // so the resumed session's SessionStart doesn't greet
+  };
   const res = process.platform === 'win32'
     ? spawnSync('cmd', ['/c', 'claude', ...args], opts)
     : spawnSync('claude', args, opts);
+  exitCode = res.status;
   log(`resume finished (exit ${res.status}) for session ${session}`);
 } catch (e) {
   log(`resume spawn error: ${String(e && e.message || e)}`);
 } finally {
   try { fs.closeSync(logFd); } catch { /* ignore */ }
 }
+
+logEvent('resume_completed', { session, cwd, project, exit: exitCode });
+const ok = exitCode === 0;
+await pushNotify(config, ok ? '✅ Session Guardian' : '⚠️ Session Guardian',
+  ok ? `Resumed & ran "${project}" — process exited cleanly. Open the session for the full report.`
+     : `Resumed "${project}" but the process errored (code ${exitCode}). Check when you're back.`);

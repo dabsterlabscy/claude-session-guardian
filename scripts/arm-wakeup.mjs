@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { loadConfig, dataDir, stateDir, shortId, killSwitchActive, allowlistBlocks, cyclesLeft, PLUGIN_ROOT, log } from './lib.mjs';
+import { loadConfig, dataDir, stateDir, shortId, killSwitchActive, allowlistBlocks, cyclesLeft, PLUGIN_ROOT, log, logEvent } from './lib.mjs';
 
 function arg(name, def = null) {
   const i = process.argv.indexOf(`--${name}`);
@@ -70,4 +70,5 @@ try {
 }
 
 log(`armed auto-resume '${taskName}' at ${fireLocal} (reset ${resetIso}), cwd ${cwd}`);
+logEvent('resume_scheduled', { session, cwd, fireLocal, resetIso });
 done(`Session Guardian: auto-resume armed for ${fireLocal} (task ${taskName}).`);
