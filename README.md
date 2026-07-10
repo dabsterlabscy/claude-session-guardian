@@ -10,7 +10,7 @@ Install it once per machine; it protects every project automatically, because th
 
 Claude Code shows you a popup like *"90% used, resets in 3 hours"*, but:
 
-- **Claude itself can't read that number.** There's no API/hook exposing the real % or reset time, and those popups are UI-only.
+- **Nothing acts on it.** Claude won't proactively checkpoint as you approach the limit.
 - **When you hit the limit, the session just stops (429).** There's no built-in auto-resume.
 
 So if you step away mid-task, you can come back to a dead session and lost context. Session Guardian fixes that.
@@ -18,10 +18,10 @@ So if you step away mid-task, you can come back to a dead session and lost conte
 ## How it works
 
 ```
-ccusage (sensor)  →  hook brake @ threshold  →  checkpoint file  →  scheduled OS task  →  autonomous resume  →  (repeat)
+status line (official 5h+7d usage)  →  hook brake @ threshold  →  checkpoint file  →  scheduled OS task  →  autonomous resume  →  (repeat)
 ```
 
-1. **Sense** — `scripts/sense.mjs` runs [`ccusage`](https://github.com/ryoppippi/ccusage) against your local transcripts to estimate how far into the 5-hour block you are (by **time**, and optionally by **spend**) and when it resets. The `%` is an **estimate**, not the official number (the real one isn't accessible to code).
+1. **Sense** — the status line receives Claude Code's **own** rate-limit numbers on stdin (`rate_limits.five_hour` and `.seven_day`: `used_percentage` + `resets_at`) — the exact figures behind the native popups, for both the 5-hour and weekly windows. `scripts/statusline.mjs` displays them and caches them for the brake. This is the **official** number, not an estimate, and it's instant. ([`ccusage`](https://github.com/ryoppippi/ccusage) is kept only as a hidden fallback for headless auto-resume runs, where there is no status line.)
 2. **Brake** — a `PostToolUse` + `UserPromptSubmit` hook checks the estimate (cheaply, cached). `PostToolUse` fires after *every* tool, so it catches long autonomous runs while you're away. When usage crosses `thresholdPct` (default 85%), it injects a one-time-per-window reminder telling Claude to wrap up.
 3. **Checkpoint** — Claude writes `SESSION-STATE.md` (*Done so far / Next steps / Resume command*) so a fresh session can continue with zero extra context.
 4. **Arm** — `scripts/arm-wakeup.mjs` schedules a one-shot OS task (Windows Task Scheduler / macOS `at` / Linux `at`) for just after the reset time.
@@ -69,7 +69,7 @@ Autonomous resume only proceeds when **all** hold: no kill-switch file, cwd pass
 
 ## Limitations (honest)
 
-- The `%` is an **estimate** from ccusage, not the official limit. Calibrate `costBudgetPer5hWindowUSD` by observing real sessions.
+- The 5h/weekly `%` is Claude Code's official number **while a status line is running** (interactive sessions). During a headless auto-resume run there's no status line, so the brake there falls back to a ccusage estimate.
 - Autonomous resume needs the **machine on** at reset time (local scheduler). An always-on box (or cron on a server) is a future option.
 - Windows scheduling is fully implemented; macOS/Linux use `at` as a best-effort one-shot.
 - Autonomous `claude --resume -p` runs with `--dangerously-skip-permissions` — that's why the allowlist, kill-switch, and cycle cap exist.
