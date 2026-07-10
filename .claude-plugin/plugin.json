@@ -7,7 +7,5 @@
   "author": { "name": "Dabster Labs", "email": "dabsterlabscy@gmail.com" },
   "homepage": "https://github.com/dabsterlabscy/claude-session-guardian",
   "repository": "https://github.com/dabsterlabscy/claude-session-guardian",
-  "license": "MIT",
-  "hooks": "./hooks/hooks.json",
-  "skills": "./skills/"
+  "license": "MIT"
 }
