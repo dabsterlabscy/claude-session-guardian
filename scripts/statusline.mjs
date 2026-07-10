@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// Optional status line. Prints e.g. "⏳ 55% · reset 15:00" for the human.
-// Wire it in settings.json:  "statusLine": { "type": "command", "command": "node \"<path>/scripts/statusline.mjs\"" }
-import { loadConfig, sense, fmtLocal } from './lib.mjs';
+// Status line. Instant: reads the cached usage only, and refreshes ccusage in the background.
+// Prints e.g. "⏳ 55% · reset 15:00".  Auto-wired into settings.json by bootstrap.mjs.
+import { loadConfig, senseCached, fmtLocal } from './lib.mjs';
 
 try {
   const config = loadConfig();
-  const u = sense(config);
+  const u = senseCached(config);
+  if (u.unknown) { process.stdout.write('🛡️ …'); process.exit(0); }
   if (u.noActiveBlock) { process.stdout.write('🛡️ idle'); process.exit(0); }
   const warn = u.usedPct >= (config.thresholdPct ?? 85);
   const icon = warn ? '⚠️' : '⏳';

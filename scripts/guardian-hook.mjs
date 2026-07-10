@@ -4,7 +4,7 @@
 // to checkpoint and arm autonomous resume. It never blocks — only adds context.
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadConfig, sense, stateDir, killSwitchActive, PLUGIN_ROOT, fmtLocal, readStdinJson, log } from './lib.mjs';
+import { loadConfig, senseCached, stateDir, killSwitchActive, PLUGIN_ROOT, fmtLocal, readStdinJson, log } from './lib.mjs';
 import { notify } from './notify.mjs';
 
 function emit(payload) {
@@ -23,8 +23,8 @@ try {
   // Kill switch → stay silent.
   if (killSwitchActive(config, cwd)) emit(null);
 
-  const usage = sense(config);
-  if (usage.noActiveBlock || usage.usedPct < (config.thresholdPct ?? 85)) emit(null);
+  const usage = senseCached(config);
+  if (usage.unknown || usage.noActiveBlock || usage.usedPct < (config.thresholdPct ?? 85)) emit(null);
 
   // Remind once per 5h block per session.
   const sdir = stateDir(sessionId);

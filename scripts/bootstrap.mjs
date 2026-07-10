@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execFile } from 'node:child_process';
-import { loadConfig, dataDir, sense, log, PLUGIN_ROOT } from './lib.mjs';
+import { loadConfig, dataDir, senseNow, refreshDetached, readCache, log, PLUGIN_ROOT } from './lib.mjs';
 
 // Auto-install our status line into ~/.claude/settings.json so it "just appears".
 // Idempotent, self-healing (re-points to the current plugin path each session), and it never
@@ -38,20 +38,23 @@ try {
   dataDir();        // ensures the data dir exists
   ensureStatusLine(cfg);
 
-  // Prime the sense cache without blocking startup; if ccusage is missing, install it in the background.
-  try {
-    const usage = sense(loadConfig(), { force: true });
-    log(`bootstrap: sensor ok (${usage.noActiveBlock ? 'no active block' : usage.usedPct + '%'})`);
-  } catch {
-    log('bootstrap: ccusage not reachable, attempting background global install');
-    const cmd = process.platform === 'win32' ? 'cmd' : 'npm';
-    const args = process.platform === 'win32' ? ['/c', 'npm', 'i', '-g', 'ccusage'] : ['i', '-g', 'ccusage'];
-    const child = execFile(cmd, args, { stdio: 'ignore' }, (err) => {
-      log(err ? `bootstrap: ccusage install failed (${err.message}); sensor will fall back to npx`
-              : 'bootstrap: ccusage installed globally');
+  // Refresh the sense cache in the BACKGROUND so SessionStart never blocks on the slow ccusage call.
+  // The status line/hooks read the cache instantly; it fills within a few seconds of session start.
+  refreshDetached();
+  const c = readCache();
+  log(`bootstrap: cache ${c && c.usage ? (c.usage.usedPct + '% (age ' + Math.round((Date.now() - c.at) / 1000) + 's)') : 'empty, refreshing'}`);
+
+  // If ccusage isn't installed at all, install it globally in the background (one-time).
+  execFile(process.platform === 'win32' ? 'cmd' : 'ccusage',
+    process.platform === 'win32' ? ['/c', 'ccusage', '--version'] : ['--version'],
+    { stdio: 'ignore' }, (err) => {
+      if (!err) return; // ccusage present
+      log('bootstrap: ccusage missing, installing globally in background');
+      const ic = execFile(process.platform === 'win32' ? 'cmd' : 'npm',
+        process.platform === 'win32' ? ['/c', 'npm', 'i', '-g', 'ccusage'] : ['i', '-g', 'ccusage'],
+        { stdio: 'ignore' }, (e2) => log(e2 ? `bootstrap: ccusage install failed (${e2.message})` : 'bootstrap: ccusage installed'));
+      ic.unref();
     });
-    child.unref();
-  }
 } catch (e) {
   try { log(`bootstrap error: ${String(e && e.message || e)}`); } catch { /* ignore */ }
 }

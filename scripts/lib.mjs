@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const PLUGIN_ROOT = path.resolve(__dirname, '..');
@@ -149,25 +149,39 @@ export function computeUsage(block, config) {
 function clampPct(x) { return Math.max(0, Math.min(100, x)); }
 function round2(x) { return Math.round((x || 0) * 100) / 100; }
 
-// Cached sense: only re-run ccusage every senseCacheSeconds. Keeps per-tool hooks cheap.
-export function sense(config, { force = false } = {}) {
-  const cachePath = path.join(dataDir(), 'sense-cache.json');
-  const ttl = (config.senseCacheSeconds || 60) * 1000;
-  if (!force) {
-    const cached = readJson(cachePath);
-    if (cached && cached.at && Date.now() - cached.at < ttl && cached.usage) {
-      return { ...cached.usage, cached: true };
-    }
-  }
+function cacheFile() { return path.join(dataDir(), 'sense-cache.json'); }
+
+export function readCache() { return readJson(cacheFile()); }
+
+// Run ccusage now (slow: a few seconds) and write the cache. Used by the sense.mjs CLI and the
+// detached background refresh — NEVER call this on a latency-sensitive path (statusline/hooks).
+export function senseNow(config) {
   const block = activeBlock();
-  if (!block) {
-    const usage = { usedPct: 0, elapsedPct: 0, costPct: null, resetIso: null, remainingMinutes: null, blockId: null, noActiveBlock: true };
-    try { fs.writeFileSync(cachePath, JSON.stringify({ at: Date.now(), usage })); } catch { /* ignore */ }
-    return usage;
-  }
-  const usage = computeUsage(block, config);
-  try { fs.writeFileSync(cachePath, JSON.stringify({ at: Date.now(), usage })); } catch { /* ignore */ }
+  const usage = block
+    ? computeUsage(block, config)
+    : { usedPct: 0, elapsedPct: 0, costPct: null, resetIso: null, remainingMinutes: null, blockId: null, noActiveBlock: true };
+  try { fs.writeFileSync(cacheFile(), JSON.stringify({ at: Date.now(), usage })); } catch { /* ignore */ }
   return usage;
+}
+
+// Kick a background refresh of the cache (fire-and-forget). Env (incl. CLAUDE_PLUGIN_DATA) is inherited.
+export function refreshDetached() {
+  try {
+    const script = path.join(PLUGIN_ROOT, 'scripts', 'sense.mjs');
+    const child = spawn(process.execPath, [script, '--force'], { detached: true, stdio: 'ignore' });
+    child.unref();
+  } catch { /* ignore */ }
+}
+
+// Instant read for statusline/hooks: return the cached value, and refresh in the background if stale.
+// Never runs ccusage synchronously, so it's always fast (< ~150ms process spawn).
+export function senseCached(config) {
+  const ttl = (config.senseCacheSeconds || 60) * 1000;
+  const c = readCache();
+  if (c && c.at && c.usage && Date.now() - c.at < ttl) return { ...c.usage, cached: true };
+  refreshDetached();
+  if (c && c.usage) return { ...c.usage, stale: true };
+  return { usedPct: 0, elapsedPct: 0, costPct: null, resetIso: null, remainingMinutes: null, blockId: null, unknown: true };
 }
 
 // Read a small JSON blob from stdin (hook payload). Never throws.
