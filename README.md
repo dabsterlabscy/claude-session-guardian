@@ -38,13 +38,9 @@ Requires **Node.js** (for the scripts and ccusage) and **Claude Code**.
 /plugin install session-guardian@dabster-labs
 ```
 
-That's it — the `SessionStart` hook bootstraps everything (installs `ccusage` if missing, seeds your config). Restart or `/reload-plugins` to activate hooks.
+That's it — the `SessionStart` hook bootstraps everything automatically: installs `ccusage` if missing, seeds your config, and **wires the live status line** (`⏳ 55% · reset 15:00`) into `~/.claude/settings.json`. Restart Claude Code to activate.
 
-### Optional: live status line
-Plugins don't ship a status line, so add this to `~/.claude/settings.json` if you want a live readout (`⏳ 55% · reset 15:00`):
-```json
-"statusLine": { "type": "command", "command": "node \"<plugin-root>/scripts/statusline.mjs\"" }
-```
+The status line is self-healing (re-points to the current plugin path on each start) and never overrides a `statusLine` you set yourself. To manage it manually instead, set `"manageStatusLine": false` in the config.
 
 ## Configuration
 
