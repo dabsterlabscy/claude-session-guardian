@@ -24,17 +24,40 @@ try {
   if (killSwitchActive(config, cwd)) emit(null);
 
   const usage = senseCached(config);
-  if (usage.unknown || usage.noActiveBlock || usage.usedPct < (config.thresholdPct ?? 85)) emit(null);
+  if (usage.unknown || usage.noActiveBlock) emit(null);
 
-  // Remind once per 5h block per session.
   const sdir = stateDir(sessionId);
-  const marker = path.join(sdir, `reminded-${(usage.blockId || 'x').replace(/[^0-9A-Za-z]/g, '')}`);
+  // Stable per-window key (hour precision) so milestone/remind markers dedupe even if the
+  // reported reset time wobbles by a few seconds between renders.
+  const blockKey = (usage.blockId
+    || (usage.resetIso ? new Date(usage.resetIso).toISOString().slice(0, 13) : 'x')
+  ).replace(/[^0-9A-Za-z]/g, '');
+  const resetLocal = fmtLocal(usage.resetIso);
+
+  // Ambient heads-up toasts at milestones (independent of the brake), once per block per level.
+  // This is the main "you can see it" signal in the VS Code extension, which has no status line.
+  for (const m of (config.milestonePcts || [])) {
+    if (usage.usedPct >= m) {
+      const mk = path.join(sdir, `ms-${blockKey}-${m}`);
+      if (!fs.existsSync(mk)) {
+        try { fs.writeFileSync(mk, new Date().toISOString()); } catch { /* ignore */ }
+        const wk = (typeof usage.weeklyPct === 'number' && usage.weeklyPct >= 50) ? ` · 7d ${usage.weeklyPct}%` : '';
+        notify('🛡️ Session Guardian', `~${usage.usedPct}% used · resets ${resetLocal}${wk}`);
+        log(`milestone ${m}% toast: ${usage.usedPct}% (session ${sessionId})`);
+      }
+    }
+  }
+
+  // Brake fires at the threshold.
+  if (usage.usedPct < (config.thresholdPct ?? 85)) emit(null);
+
+  // Remind (checkpoint + arm) once per 5h block per session.
+  const marker = path.join(sdir, `reminded-${blockKey}`);
   if (fs.existsSync(marker)) emit(null);
   try { fs.writeFileSync(marker, new Date().toISOString()); } catch { /* ignore */ }
 
   const statePath = sdir;
   const armScript = path.join(PLUGIN_ROOT, 'scripts', 'arm-wakeup.mjs');
-  const resetLocal = fmtLocal(usage.resetIso);
   const killName = config.killSwitchFile || 'STOP-GUARDIAN';
   const weeklyNote = (typeof usage.weeklyPct === 'number' && usage.weeklyPct >= 50)
     ? `\nNote: your 7-day usage is also at ~${usage.weeklyPct}%${usage.weeklyResetIso ? ` (resets ${fmtLocal(usage.weeklyResetIso)})` : ''}.`

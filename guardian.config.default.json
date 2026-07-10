@@ -1,5 +1,6 @@
 {
   "thresholdPct": 85,
+  "milestonePcts": [70, 95],
   "autonomous": true,
   "maxAutoCycles": 6,
   "projectAllowlist": [],
@@ -11,7 +12,8 @@
   "resumePrompt": "Auto-resume by Session Guardian. Read SESSION-STATE.md in this directory, do the next 1-2 planned steps from its 'Next steps' section, update the checkpoint, then stop. Do not start unrelated work.",
   "_docs": {
     "sensor": "Primary source is Claude Code's OWN rate-limit numbers, delivered to the status line on stdin (rate_limits.five_hour / seven_day) — the same figures behind the native usage popups. The status line caches them for the brake hooks. ccusage is only a fallback for headless auto-resume runs, where there is no status line.",
-    "thresholdPct": "Fire the brake when the 5-hour used_percentage crosses this.",
+    "thresholdPct": "Fire the brake (checkpoint + auto-resume arm) when the 5-hour used_percentage crosses this.",
+    "milestonePcts": "Extra ambient heads-up TOASTS at these levels (once per window each), so VS Code users — who have no status line — still get visible usage warnings. Keep these different from thresholdPct to avoid a double toast at the brake.",
     "autonomous": "true = auto-resume the session at reset. false = only checkpoint (no scheduled resume).",
     "maxAutoCycles": "Hard cap on consecutive autonomous resumes before Guardian stops re-arming.",
     "projectAllowlist": "Empty = resume allowed from any project dir. Add absolute cwd paths to restrict autonomous resume to those projects only.",

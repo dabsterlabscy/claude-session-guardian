@@ -29,6 +29,8 @@ status line (official 5h+7d usage)  →  hook brake @ threshold  →  checkpoint
 
 **Desktop notifications:** you get a native toast when the brake fires (*"~87% used · checkpointing · auto-resume ~15:00"*) and again when the session auto-resumes — so you know what's happening even if you stepped away. Windows uses a dependency-free PowerShell toast; macOS uses `osascript`; Linux uses `notify-send`.
 
+**Ambient milestone toasts (VS Code):** the live `⏳ %` status bar is a **terminal-CLI feature** — the VS Code extension doesn't render it. So VS Code users also get lighter heads-up toasts at `milestonePcts` (default 70% and 95%), once per window, for at-a-glance awareness without a status bar. In the terminal you get both the bar and the toasts.
+
 ## Install
 
 Requires **Node.js** (for the scripts and ccusage) and **Claude Code**.
