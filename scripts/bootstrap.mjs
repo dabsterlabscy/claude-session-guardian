@@ -1,15 +1,14 @@
 #!/usr/bin/env node
-// Runs on SessionStart. Idempotent and fast: seeds the data dir + user config, auto-wires the
-// live status line, and checks that ccusage is reachable (installs it if missing). Never blocks.
+// Runs on SessionStart. Idempotent, fast, and does NOT run ccusage (so nothing flashes on start):
+// it seeds the data dir + config and auto-wires the live status line. The status line itself is
+// what reads Claude Code's official rate-limit numbers and feeds them to the brake hooks.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { execFile } from 'node:child_process';
-import { loadConfig, dataDir, senseNow, refreshDetached, readCache, log, PLUGIN_ROOT } from './lib.mjs';
+import { loadConfig, dataDir, readCache, log, PLUGIN_ROOT } from './lib.mjs';
 
-// Auto-install our status line into ~/.claude/settings.json so it "just appears".
-// Idempotent, self-healing (re-points to the current plugin path each session), and it never
-// clobbers a status line the user set themselves.
+// Auto-install our status line into ~/.claude/settings.json so usage "just appears".
+// Idempotent, self-healing (re-points to the current plugin path), never clobbers a user's own.
 function ensureStatusLine(config) {
   if (config.manageStatusLine === false) return;
   const settingsPath = process.env.GUARDIAN_SETTINGS_PATH || path.join(os.homedir(), '.claude', 'settings.json');
@@ -19,44 +18,28 @@ function ensureStatusLine(config) {
     catch { log('bootstrap: settings.json unparseable; leaving status line unmanaged'); return; }
   }
   const script = path.join(PLUGIN_ROOT, 'scripts', 'statusline.mjs');
-  const desired = `node "${script}"`;
+  const command = `node "${script}"`;
+  const refreshInterval = config.statusRefreshSeconds ?? 10;
   const cur = settings.statusLine;
   const ours = cur && typeof cur.command === 'string'
     && cur.command.includes('statusline.mjs') && cur.command.toLowerCase().includes('session-guardian');
   if (cur && !ours) { log('bootstrap: a custom statusLine is set; not overriding it'); return; }
-  if (cur && cur.command === desired) return; // already correct
-  settings.statusLine = { type: 'command', command: desired };
+  if (cur && cur.command === command && cur.refreshInterval === refreshInterval) return;
+  settings.statusLine = { type: 'command', command, refreshInterval };
   try {
     fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
-    log(`bootstrap: status line wired -> ${script}`);
+    log(`bootstrap: status line wired -> ${script} (refreshInterval ${refreshInterval}s)`);
   } catch (e) { log(`bootstrap: could not wire status line (${String(e && e.message || e)})`); }
 }
 
 try {
   const cfg = loadConfig();     // seeds guardian.config.json on first run
-  dataDir();        // ensures the data dir exists
+  dataDir();                    // ensures the data dir exists
   ensureStatusLine(cfg);
-
-  // Refresh the sense cache in the BACKGROUND so SessionStart never blocks on the slow ccusage call.
-  // The status line/hooks read the cache instantly; it fills within a few seconds of session start.
-  refreshDetached();
   const c = readCache();
-  log(`bootstrap: cache ${c && c.usage ? (c.usage.usedPct + '% (age ' + Math.round((Date.now() - c.at) / 1000) + 's)') : 'empty, refreshing'}`);
-
-  // If ccusage isn't installed at all, install it globally in the background (one-time).
-  execFile(process.platform === 'win32' ? 'cmd' : 'ccusage',
-    process.platform === 'win32' ? ['/c', 'ccusage', '--version'] : ['--version'],
-    { stdio: 'ignore', windowsHide: true }, (err) => {
-      if (!err) return; // ccusage present
-      log('bootstrap: ccusage missing, installing globally in background');
-      const ic = execFile(process.platform === 'win32' ? 'cmd' : 'npm',
-        process.platform === 'win32' ? ['/c', 'npm', 'i', '-g', 'ccusage'] : ['i', '-g', 'ccusage'],
-        { stdio: 'ignore', windowsHide: true }, (e2) => log(e2 ? `bootstrap: ccusage install failed (${e2.message})` : 'bootstrap: ccusage installed'));
-      ic.unref();
-    });
+  log(`bootstrap: ready (cache ${c && c.usage ? c.usage.usedPct + '%' : 'empty — fills on first status render'})`);
 } catch (e) {
   try { log(`bootstrap error: ${String(e && e.message || e)}`); } catch { /* ignore */ }
 }
-// SessionStart hooks may print additionalContext, but we stay silent to keep startup clean.
 process.exit(0);

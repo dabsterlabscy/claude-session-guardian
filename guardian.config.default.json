@@ -1,23 +1,24 @@
 {
   "thresholdPct": 85,
-  "costBudgetPer5hWindowUSD": null,
   "autonomous": true,
   "maxAutoCycles": 6,
   "projectAllowlist": [],
   "killSwitchFile": "STOP-GUARDIAN",
+  "manageStatusLine": true,
+  "statusRefreshSeconds": 10,
   "senseCacheSeconds": 60,
   "resumeBufferMinutes": 2,
-  "manageStatusLine": true,
   "resumePrompt": "Auto-resume by Session Guardian. Read SESSION-STATE.md in this directory, do the next 1-2 planned steps from its 'Next steps' section, update the checkpoint, then stop. Do not start unrelated work.",
   "_docs": {
-    "thresholdPct": "Fire the brake when usedPct crosses this. usedPct = max(time-elapsed% of the 5h block, cost-burn% if a budget is set).",
-    "costBudgetPer5hWindowUSD": "null = brake on TIME only (safe default, no false alarms). Set a number (e.g. 50) once you've observed your plan to also brake on spend/burn. ccusage costUSD is used because raw token counts are dominated by cache reads.",
+    "sensor": "Primary source is Claude Code's OWN rate-limit numbers, delivered to the status line on stdin (rate_limits.five_hour / seven_day) — the same figures behind the native usage popups. The status line caches them for the brake hooks. ccusage is only a fallback for headless auto-resume runs, where there is no status line.",
+    "thresholdPct": "Fire the brake when the 5-hour used_percentage crosses this.",
     "autonomous": "true = auto-resume the session at reset. false = only checkpoint (no scheduled resume).",
-    "maxAutoCycles": "Hard cap on consecutive autonomous resumes before Guardian stops re-arming, so a runaway loop can't burn windows forever.",
+    "maxAutoCycles": "Hard cap on consecutive autonomous resumes before Guardian stops re-arming.",
     "projectAllowlist": "Empty = resume allowed from any project dir. Add absolute cwd paths to restrict autonomous resume to those projects only.",
     "killSwitchFile": "If a file with this name exists in the project dir OR the Guardian data dir, no arm and no resume happen.",
-    "manageStatusLine": "true = auto-add a live '⏳ 55% · reset 15:00' status line to ~/.claude/settings.json on session start (self-healing, never overrides a status line you set yourself). Set false to manage it manually.",
-    "senseCacheSeconds": "ccusage is only re-run this often; hooks read a cached result in between so they stay fast.",
-    "resumeBufferMinutes": "Schedule the resume this many minutes AFTER the estimated reset time."
+    "manageStatusLine": "true = auto-add a live '⏳ 62% · reset 15:00' status line to ~/.claude/settings.json on session start (self-healing, never overrides a status line you set yourself). Set false to manage it manually.",
+    "statusRefreshSeconds": "refreshInterval for the status line — re-runs it on a timer so usage stays current even while idle.",
+    "senseCacheSeconds": "Freshness window for the cached usage the brake hooks read; older than this triggers a hidden ccusage fallback refresh (headless only).",
+    "resumeBufferMinutes": "Schedule the resume this many minutes AFTER the reset time."
   }
 }

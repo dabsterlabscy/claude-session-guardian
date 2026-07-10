@@ -5,18 +5,17 @@ description: Show the current Session Guardian usage estimate — how much of th
 
 # Session Guardian — status
 
-Report the current usage estimate to the user.
+Report the current usage to the user.
 
-1. Run the sensor:
+1. Read the cached usage (populated by the status line from Claude Code's official rate-limit data):
    ```
-   node "${CLAUDE_PLUGIN_ROOT}/scripts/sense.mjs" --force --pretty
+   node "${CLAUDE_PLUGIN_ROOT}/scripts/sense.mjs" --pretty
    ```
 2. Read the JSON and tell the user, plainly:
-   - `usedPct` — estimated % of the current 5-hour window used (this is an **estimate** from ccusage, not the official number).
+   - `usedPct` — % of the current **5-hour** window used. If `official` is true this is Claude Code's own number (same as the popups); otherwise it's a ccusage fallback estimate.
    - `remainingMinutes` and the local reset time (convert `resetIso` to local).
-   - `elapsedPct` (time-based) and, if not null, `costPct` (spend-based) so they see which one is driving the number.
-   - `costUSD` for the block.
-3. If `noActiveBlock` is true, say there's no active usage block right now (idle).
-4. If the number is at or above the configured `thresholdPct`, remind them the brake will fire and a checkpoint + auto-resume will be armed.
+   - `weeklyPct` / `weeklyResetIso` — the **7-day** window, if present.
+3. If the output has `unknown: true` (no status line has run yet this session), say usage isn't available yet — it appears once the status line renders; or run with `--force` for a ccusage estimate.
+4. If `usedPct` is at/above `thresholdPct`, remind them the brake will fire (checkpoint + auto-resume armed).
 
-Keep it to 2–4 lines. Do not dump raw JSON unless asked.
+Keep it to 2–4 lines. Don't dump raw JSON unless asked.

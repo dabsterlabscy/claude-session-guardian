@@ -36,6 +36,9 @@ try {
   const armScript = path.join(PLUGIN_ROOT, 'scripts', 'arm-wakeup.mjs');
   const resetLocal = fmtLocal(usage.resetIso);
   const killName = config.killSwitchFile || 'STOP-GUARDIAN';
+  const weeklyNote = (typeof usage.weeklyPct === 'number' && usage.weeklyPct >= 50)
+    ? `\nNote: your 7-day usage is also at ~${usage.weeklyPct}%${usage.weeklyResetIso ? ` (resets ${fmtLocal(usage.weeklyResetIso)})` : ''}.`
+    : '';
 
   const armLine = config.autonomous === false
     ? '(Autonomous resume is disabled in config — no auto-resume will be scheduled.)'
@@ -50,7 +53,7 @@ Wrap up cleanly now, before the window runs out:
    ${path.join(statePath, 'SESSION-STATE.md')}
    with these sections: "## Done so far", "## Next steps" (ordered, concrete), "## Resume command". Write enough that a fresh session can continue with zero extra context.
 ${armLine}
-4. Then briefly tell the user you've checkpointed, and stop.
+4. Then briefly tell the user you've checkpointed, and stop.${weeklyNote}
 ${config.autonomous === false ? '' : `Guardian will auto-resume this session shortly after ${resetLocal}. To cancel, create an empty file named ${killName} in ${cwd}.`}`;
 
   log(`brake fired: ${usage.usedPct}% (${eventName}, session ${sessionId}), reset ${usage.resetIso}`);

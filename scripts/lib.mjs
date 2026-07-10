@@ -153,6 +153,34 @@ function cacheFile() { return path.join(dataDir(), 'sense-cache.json'); }
 
 export function readCache() { return readJson(cacheFile()); }
 
+export function writeUsageCache(usage) {
+  try { fs.writeFileSync(cacheFile(), JSON.stringify({ at: Date.now(), usage })); } catch { /* ignore */ }
+}
+
+// The authoritative sensor: the status line's stdin JSON carries Claude Code's OWN rate-limit
+// numbers (the same ones behind the "90% used, resets in 3h" popups) — for both the 5-hour and
+// 7-day windows. Returns our usage shape, or null when the fields aren't present.
+export function parseRateLimits(input) {
+  const rl = input && input.rate_limits;
+  if (!rl || (!rl.five_hour && !rl.seven_day)) return null;
+  const fh = rl.five_hour || {};
+  const sd = rl.seven_day || {};
+  const toIso = (s) => (typeof s === 'number' ? new Date(s * 1000).toISOString() : null);
+  const num = (x) => (typeof x === 'number' ? Math.round(x) : null);
+  const resetIso = toIso(fh.resets_at);
+  const usedPct = num(fh.used_percentage);
+  if (usedPct == null && resetIso == null) return null;
+  const remainingMinutes = resetIso ? Math.max(0, Math.round((new Date(resetIso).getTime() - Date.now()) / 60000)) : null;
+  return {
+    usedPct: usedPct ?? 0,
+    resetIso,
+    remainingMinutes,
+    weeklyPct: num(sd.used_percentage),
+    weeklyResetIso: toIso(sd.resets_at),
+    official: true,
+  };
+}
+
 // Run ccusage now (slow: a few seconds) and write the cache. Used by the sense.mjs CLI and the
 // detached background refresh — NEVER call this on a latency-sensitive path (statusline/hooks).
 export function senseNow(config) {
@@ -184,15 +212,17 @@ export function senseCached(config) {
   return { usedPct: 0, elapsedPct: 0, costPct: null, resetIso: null, remainingMinutes: null, blockId: null, unknown: true };
 }
 
-// Read a small JSON blob from stdin (hook payload). Never throws.
-export async function readStdinJson() {
+// Read a small JSON blob from stdin (hook/statusline payload). Never throws, never hangs.
+export async function readStdinJson(timeoutMs = 800) {
   return new Promise((resolve) => {
-    let data = '';
+    let data = '', done = false;
+    const finish = () => { if (done) return; done = true; try { resolve(JSON.parse(data || '{}')); } catch { resolve({}); } };
     if (process.stdin.isTTY) return resolve({});
     process.stdin.setEncoding('utf8');
     process.stdin.on('data', (c) => { data += c; });
-    process.stdin.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch { resolve({}); } });
-    process.stdin.on('error', () => resolve({}));
+    process.stdin.on('end', finish);
+    process.stdin.on('error', () => { if (!done) { done = true; resolve({}); } });
+    setTimeout(finish, timeoutMs).unref?.();
   });
 }
 

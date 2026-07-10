@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// Sensor CLI. Prints the current 5-hour usage estimate as JSON.
-//   --force   run ccusage now (slow, authoritative) and update the cache
-//   (default) instant cached read; refreshes in the background if stale
+// Sensor CLI. Prints the current usage as JSON.
+//   (default) instant read of the cache the status line maintains (official 5h + 7d numbers)
+//   --force   run the ccusage fallback now (slow estimate; used when no status line has run)
 //   --pretty  pretty-print
 import { loadConfig, senseNow, senseCached } from './lib.mjs';
 
