@@ -1,0 +1,17 @@
+{
+  "name": "dabster-labs",
+  "owner": {
+    "name": "Dabster Labs",
+    "email": "dabsterlabscy@gmail.com"
+  },
+  "description": "Dabster Labs plugins for Claude Code.",
+  "plugins": [
+    {
+      "name": "session-guardian",
+      "source": "./",
+      "description": "Senses the 5-hour usage window, checkpoints before the limit, and auto-resumes when it resets.",
+      "version": "0.1.0",
+      "author": { "name": "Dabster Labs" }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "session-guardian",
+  "displayName": "Session Guardian",
+  "version": "0.1.0",
+  "description": "Senses the 5-hour usage window (via ccusage), brakes and checkpoints before you hit the limit, and auto-resumes the session when the window resets.",
+  "author": { "name": "Dabster Labs", "email": "dabsterlabscy@gmail.com" },
+  "homepage": "https://github.com/dabsterlabscy/claude-session-guardian",
+  "repository": "https://github.com/dabsterlabscy/claude-session-guardian",
+  "license": "MIT",
+  "hooks": "./hooks/hooks.json",
+  "skills": "./skills/"
+}

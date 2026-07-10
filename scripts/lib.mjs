@@ -1,0 +1,190 @@
+// Shared helpers for Session Guardian: paths, config, logging, and the ccusage sensor.
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+export const PLUGIN_ROOT = path.resolve(__dirname, '..');
+
+// Persistent data dir. Inside a plugin, Claude Code sets CLAUDE_PLUGIN_DATA (survives updates).
+// Falls back to ~/.claude/session-guardian when run standalone.
+export function dataDir() {
+  const d = process.env.CLAUDE_PLUGIN_DATA || path.join(os.homedir(), '.claude', 'session-guardian');
+  fs.mkdirSync(d, { recursive: true });
+  return d;
+}
+
+export function stateDir(sessionId) {
+  const base = path.join(dataDir(), 'state');
+  const d = sessionId ? path.join(base, sanitizeId(sessionId)) : base;
+  fs.mkdirSync(d, { recursive: true });
+  return d;
+}
+
+export function sanitizeId(id) {
+  return String(id || 'unknown').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32) || 'unknown';
+}
+
+export function shortId(id) {
+  return sanitizeId(id).slice(0, 12);
+}
+
+export function loadConfig() {
+  const defaults = readJson(path.join(PLUGIN_ROOT, 'guardian.config.default.json')) || {};
+  const userPath = path.join(dataDir(), 'guardian.config.json');
+  const user = readJson(userPath) || {};
+  // Seed a user config on first run so it's easy to find and edit.
+  if (!fs.existsSync(userPath)) {
+    try { fs.writeFileSync(userPath, JSON.stringify(stripDocs(defaults), null, 2)); } catch { /* non-fatal */ }
+  }
+  return { ...defaults, ...user };
+}
+
+function stripDocs(obj) {
+  const { _docs, ...rest } = obj || {};
+  return rest;
+}
+
+export function readJson(p) {
+  try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; }
+}
+
+export function log(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}\n`;
+  try { fs.appendFileSync(path.join(dataDir(), 'guardian.log'), line); } catch { /* ignore */ }
+}
+
+// Kill switch: a file with the configured name in the project dir OR the data dir disables everything.
+export function killSwitchActive(config, cwd) {
+  const name = config.killSwitchFile || 'STOP-GUARDIAN';
+  const spots = [cwd && path.join(cwd, name), path.join(dataDir(), name)].filter(Boolean);
+  return spots.some((p) => { try { return fs.existsSync(p); } catch { return false; } });
+}
+
+// Allowlist: empty list = allow everywhere. Otherwise cwd must be inside one of the listed dirs.
+export function allowlistBlocks(config, cwd) {
+  const list = config.projectAllowlist || [];
+  if (!list.length) return false;
+  const norm = (p) => path.resolve(p).replace(/\\/g, '/').toLowerCase().replace(/\/+$/, '');
+  const c = norm(cwd);
+  return !list.some((allowed) => {
+    const a = norm(allowed);
+    return c === a || c.startsWith(a + '/');
+  });
+}
+
+// Autonomous-resume budget, tracked per session in state/<session>/cycles.json.
+function cyclesPath(session) { return path.join(stateDir(session), 'cycles.json'); }
+
+export function cyclesLeft(config, session) {
+  const rec = readJson(cyclesPath(session));
+  if (rec && typeof rec.left === 'number') return rec.left;
+  return config.maxAutoCycles ?? 6;
+}
+
+export function consumeCycle(config, session) {
+  const left = cyclesLeft(config, session) - 1;
+  try { fs.writeFileSync(cyclesPath(session), JSON.stringify({ left, updated: new Date().toISOString() })); } catch { /* ignore */ }
+  return left;
+}
+
+// --- ccusage sensor -------------------------------------------------------
+
+function runCcusageRaw() {
+  const args = ['blocks', '--active', '--json'];
+  const win = process.platform === 'win32';
+  const opts = { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 120000 };
+  // Prefer a globally-installed ccusage (fast); fall back to npx (downloads once, then cached).
+  // On Windows the bins are .cmd shims, so route through cmd.exe with explicit args (no shell:true).
+  const attempts = win
+    ? [
+        () => execFileSync('cmd', ['/c', 'ccusage', ...args], opts),
+        () => execFileSync('cmd', ['/c', 'npx', '-y', 'ccusage@latest', ...args], opts),
+      ]
+    : [
+        () => execFileSync('ccusage', args, opts),
+        () => execFileSync('npx', ['-y', 'ccusage@latest', ...args], opts),
+      ];
+  let lastErr;
+  for (const attempt of attempts) {
+    try {
+      return JSON.parse(attempt());
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('ccusage failed');
+}
+
+// Returns the active block object, or null if none.
+function activeBlock() {
+  const parsed = runCcusageRaw();
+  const blocks = (parsed && parsed.blocks) || [];
+  return blocks.find((b) => b.isActive && !b.isGap) || null;
+}
+
+// Compute usage from an active block + config. Pure, so it's easy to test.
+export function computeUsage(block, config) {
+  const start = new Date(block.startTime).getTime();
+  const end = new Date(block.endTime).getTime();
+  const now = Date.now();
+  const span = Math.max(1, end - start);
+  const elapsedPct = clampPct(((now - start) / span) * 100);
+  const budget = config.costBudgetPer5hWindowUSD;
+  const costPct = budget && budget > 0 ? clampPct((block.costUSD / budget) * 100) : null;
+  const usedPct = costPct == null ? elapsedPct : Math.max(elapsedPct, costPct);
+  const remainingMinutes = Math.max(0, Math.round((end - now) / 60000));
+  return {
+    usedPct: Math.round(usedPct),
+    elapsedPct: Math.round(elapsedPct),
+    costPct: costPct == null ? null : Math.round(costPct),
+    resetIso: block.endTime,
+    remainingMinutes,
+    blockId: block.id,
+    costUSD: round2(block.costUSD),
+    totalTokens: block.totalTokens,
+  };
+}
+
+function clampPct(x) { return Math.max(0, Math.min(100, x)); }
+function round2(x) { return Math.round((x || 0) * 100) / 100; }
+
+// Cached sense: only re-run ccusage every senseCacheSeconds. Keeps per-tool hooks cheap.
+export function sense(config, { force = false } = {}) {
+  const cachePath = path.join(dataDir(), 'sense-cache.json');
+  const ttl = (config.senseCacheSeconds || 60) * 1000;
+  if (!force) {
+    const cached = readJson(cachePath);
+    if (cached && cached.at && Date.now() - cached.at < ttl && cached.usage) {
+      return { ...cached.usage, cached: true };
+    }
+  }
+  const block = activeBlock();
+  if (!block) {
+    const usage = { usedPct: 0, elapsedPct: 0, costPct: null, resetIso: null, remainingMinutes: null, blockId: null, noActiveBlock: true };
+    try { fs.writeFileSync(cachePath, JSON.stringify({ at: Date.now(), usage })); } catch { /* ignore */ }
+    return usage;
+  }
+  const usage = computeUsage(block, config);
+  try { fs.writeFileSync(cachePath, JSON.stringify({ at: Date.now(), usage })); } catch { /* ignore */ }
+  return usage;
+}
+
+// Read a small JSON blob from stdin (hook payload). Never throws.
+export async function readStdinJson() {
+  return new Promise((resolve) => {
+    let data = '';
+    if (process.stdin.isTTY) return resolve({});
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (c) => { data += c; });
+    process.stdin.on('end', () => { try { resolve(JSON.parse(data || '{}')); } catch { resolve({}); } });
+    process.stdin.on('error', () => resolve({}));
+  });
+}
+
+export function fmtLocal(iso) {
+  if (!iso) return 'unknown';
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}`;
+}

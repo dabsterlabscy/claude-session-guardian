@@ -1,0 +1,14 @@
+# Guardian runtime state — never commit (contains checkpoints, session ids, logs)
+state/
+*.log
+sense-cache.json
+guardian.config.json
+wake-*.cmd
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
