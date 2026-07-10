@@ -48,8 +48,20 @@ try {
     }
   }
 
+  const thr = config.thresholdPct ?? 91;
+
+  // In-chat banner: on a user prompt with elevated (pre-brake) usage, have Claude surface a
+  // one-line usage banner at the top of its reply — the "central in the chat" signal.
+  // Set chatBannerPct to 0 for an always-on banner, or very high to disable it.
+  if (eventName === 'UserPromptSubmit' && usage.usedPct >= (config.chatBannerPct ?? 50) && usage.usedPct < thr) {
+    const line = `🛡️ Usage ${usage.usedPct}% · reset ${resetLocal}${usage.remainingMinutes != null ? ` · ~${usage.remainingMinutes}min left` : ''}`
+      + ((typeof usage.weeklyPct === 'number' && usage.weeklyPct >= 50) ? ` · 7d ${usage.weeklyPct}%` : '');
+    emit({ hookSpecificOutput: { hookEventName: eventName, additionalContext:
+      `Session Guardian: usage is elevated. Begin your reply with this exact line, then a blank line, before your normal answer:\n${line}` } });
+  }
+
   // Brake fires at the threshold.
-  if (usage.usedPct < (config.thresholdPct ?? 85)) emit(null);
+  if (usage.usedPct < thr) emit(null);
 
   // Remind (checkpoint + arm) once per 5h block per session.
   const marker = path.join(sdir, `reminded-${blockKey}`);

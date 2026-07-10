@@ -10,7 +10,7 @@
       "name": "session-guardian",
       "source": "./",
       "description": "Reads official 5h + weekly usage from the status line, checkpoints before the limit, and auto-resumes when it resets.",
-      "version": "0.4.0",
+      "version": "0.5.0",
       "author": { "name": "Dabster Labs" }
     }
   ]

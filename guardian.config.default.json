@@ -1,6 +1,7 @@
 {
   "thresholdPct": 91,
   "milestonePcts": [75, 85],
+  "chatBannerPct": 50,
   "checkpointExtra": "Also update the project files/notes you normally maintain (e.g. a daily .md, README, task log, or a commit) so the work is saved the way you work.",
   "autonomous": true,
   "maxAutoCycles": 6,
@@ -15,6 +16,7 @@
     "sensor": "Primary source is Claude Code's OWN rate-limit numbers, delivered to the status line on stdin (rate_limits.five_hour / seven_day) — the same figures behind the native usage popups. The status line caches them for the brake hooks. ccusage is only a fallback for headless auto-resume runs, where there is no status line.",
     "thresholdPct": "Fire the brake (checkpoint + auto-resume arm) when the 5-hour used_percentage crosses this.",
     "milestonePcts": "Extra ambient heads-up TOASTS at these levels (once per window each), so VS Code users — who have no status line — still get visible usage warnings. Keep these different from thresholdPct to avoid a double toast at the brake.",
+    "chatBannerPct": "When 5-hour usage is at/above this (but below the brake), a UserPromptSubmit hook asks Claude to start each reply with a one-line usage banner IN THE CHAT. Set 0 for an always-on banner, or 101 to disable.",
     "checkpointExtra": "Extra instruction appended to the brake's checkpoint step — tell Claude to also update whatever local files/.md/notes you personally keep, so the checkpoint matches your workflow.",
     "autonomous": "true = auto-resume the session at reset. false = only checkpoint (no scheduled resume).",
     "maxAutoCycles": "Hard cap on consecutive autonomous resumes before Guardian stops re-arming.",
