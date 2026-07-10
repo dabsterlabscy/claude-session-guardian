@@ -1,8 +1,8 @@
 {
   "name": "session-guardian-statusbar",
   "displayName": "Session Guardian",
-  "description": "Shows Claude Code 5-hour + weekly usage in the VS Code status bar and a sidebar gauge (companion to the Session Guardian Claude Code plugin).",
-  "version": "0.2.0",
+  "description": "Shows Claude Code usage + Guardian state (brake, autonomy, recent activity) in the VS Code status bar and a sidebar dashboard.",
+  "version": "0.3.0",
   "publisher": "dabster-labs",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/dabsterlabscy/claude-session-guardian" },
