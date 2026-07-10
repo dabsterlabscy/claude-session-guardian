@@ -59,6 +59,8 @@ try {
   const statePath = sdir;
   const armScript = path.join(PLUGIN_ROOT, 'scripts', 'arm-wakeup.mjs');
   const killName = config.killSwitchFile || 'STOP-GUARDIAN';
+  const checkpointExtra = config.checkpointExtra
+    || 'Also update the project files/notes you normally maintain (e.g. a daily .md, README, task log, or a commit) so the work is saved the way you work.';
   const weeklyNote = (typeof usage.weeklyPct === 'number' && usage.weeklyPct >= 50)
     ? `\nNote: your 7-day usage is also at ~${usage.weeklyPct}%${usage.weeklyResetIso ? ` (resets ${fmtLocal(usage.weeklyResetIso)})` : ''}.`
     : '';
@@ -75,6 +77,7 @@ Wrap up cleanly now, before the window runs out:
 2. Write/update a checkpoint file at:
    ${path.join(statePath, 'SESSION-STATE.md')}
    with these sections: "## Done so far", "## Next steps" (ordered, concrete), "## Resume command". Write enough that a fresh session can continue with zero extra context.
+   ${checkpointExtra}
 ${armLine}
 4. Then briefly tell the user you've checkpointed, and stop.${weeklyNote}
 ${config.autonomous === false ? '' : `Guardian will auto-resume this session shortly after ${resetLocal}. To cancel, create an empty file named ${killName} in ${cwd}.`}`;
