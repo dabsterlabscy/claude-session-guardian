@@ -12,3 +12,7 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# VS Code extension build artifacts
+vscode-extension/*.vsix
+vscode-extension/node_modules/
