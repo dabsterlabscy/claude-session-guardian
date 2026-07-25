@@ -26,6 +26,13 @@ try {
   const usage = senseCached(config);
   if (usage.unknown || usage.noActiveBlock) emit(null);
 
+  // CORRECTNESS: only ACT on Claude Code's OWN rate-limit numbers (usage.official === true, present
+  // when a terminal status line feeds them). The ccusage fallback is a TIME-based estimate — it
+  // reflects wall-clock elapsed in the 5-hour window, not real token usage — so it must never fire
+  // the brake, milestones, or banner. (That mismatch caused false "93% used" alarms in the VS Code
+  // extension, where no official number is available.) Opt in with config.brakeOnEstimate: true.
+  if (!usage.official && config.brakeOnEstimate !== true) emit(null);
+
   const sdir = stateDir(sessionId);
   // Stable per-window key (hour precision) so milestone/remind markers dedupe even if the
   // reported reset time wobbles by a few seconds between renders.

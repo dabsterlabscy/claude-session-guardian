@@ -1,5 +1,6 @@
 {
   "thresholdPct": 91,
+  "brakeOnEstimate": false,
   "milestonePcts": [75, 85],
   "chatBannerPct": 85,
   "checkpointExtra": "Also update the project files/notes you normally maintain (e.g. a daily .md, README, task log, or a commit) so the work is saved the way you work.",
@@ -18,6 +19,7 @@
   "_docs": {
     "sensor": "Primary source is Claude Code's OWN rate-limit numbers, delivered to the status line on stdin (rate_limits.five_hour / seven_day) — the same figures behind the native usage popups. The status line caches them for the brake hooks. ccusage is only a fallback for headless auto-resume runs, where there is no status line.",
     "thresholdPct": "Fire the brake (checkpoint + auto-resume arm) when the 5-hour used_percentage crosses this.",
+    "brakeOnEstimate": "false (default) = the brake/toasts/banner ONLY fire on Claude Code's official rate-limit numbers (available when a terminal status line is running). Set true to also fire on the ccusage time-based estimate — NOT recommended: that estimate reflects elapsed time in the window, not real usage, and causes false alarms in the VS Code extension.",
     "milestonePcts": "Extra ambient heads-up TOASTS at these levels (once per window each), so VS Code users — who have no status line — still get visible usage warnings. Keep these different from thresholdPct to avoid a double toast at the brake.",
     "chatBannerPct": "When 5-hour usage is at/above this (but below the brake), a UserPromptSubmit hook asks Claude to start each reply with a one-line usage banner IN THE CHAT. Set 0 for an always-on banner, or 101 to disable.",
     "checkpointExtra": "Extra instruction appended to the brake's checkpoint step — tell Claude to also update whatever local files/.md/notes you personally keep, so the checkpoint matches your workflow.",

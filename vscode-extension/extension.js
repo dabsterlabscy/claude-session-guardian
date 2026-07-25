@@ -120,28 +120,44 @@ function render() {
   }
 
   const u = cur.usage;
+  const official = cur && cur.usage && cur.usage.official === true;
   const pct = Math.round(u.usedPct ?? 0);
   const reset = hhmm(u.resetIso);
   const stale = cur.source === 'stale';
-  const icon = pct >= c.critPct ? '$(flame)' : pct >= c.warnPct ? '$(warning)' : '$(pulse)';
-  item.text = `${icon} ${pct}% · ${reset}${stale ? ' (stale)' : ''}`;
+
+  if (official) {
+    const icon = pct >= c.critPct ? '$(flame)' : pct >= c.warnPct ? '$(warning)' : '$(pulse)';
+    item.text = `${icon} ${pct}% · ${reset}${stale ? ' (stale)' : ''}`;
+  } else {
+    // Estimate/stale: TIME elapsed in the 5-hour window, not real usage. Neutral icon, honest label.
+    item.text = `$(watch) ~${pct}% time · reset ${reset}${stale ? ' (stale)' : ''}`;
+  }
 
   const md = new vscode.MarkdownString();
   md.appendMarkdown(`**Claude Code usage** _(${cur.source})_\n\n`);
-  md.appendMarkdown(`- 5-hour: **${pct}%** · resets **${reset}**` + (u.remainingMinutes != null ? ` (~${u.remainingMinutes} min)` : '') + `\n`);
+  if (official) {
+    md.appendMarkdown(`- 5-hour: **${pct}%** · resets **${reset}**` + (u.remainingMinutes != null ? ` (~${u.remainingMinutes} min)` : '') + `\n`);
+  } else {
+    md.appendMarkdown(`- 5-hour window: **~${pct}% of the time elapsed** (estimate, NOT real usage) · resets **${reset}**` + (u.remainingMinutes != null ? ` (~${u.remainingMinutes} min)` : '') + `\n`);
+    md.appendMarkdown(`- _Run Claude Code in a terminal (status line) to get the official usage number._\n`);
+  }
   if (u.weeklyPct != null) md.appendMarkdown(`- 7-day: **${Math.round(u.weeklyPct)}%** · resets ${hhmm(u.weeklyResetIso)}\n`);
   md.appendMarkdown(`\n_click for the dashboard_`);
   item.tooltip = md;
 
-  if (pct >= c.critPct) item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
-  else if (pct >= c.warnPct) item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
+  // Warning colors + threshold toasts ONLY on official rate-limit numbers.
+  // The ccusage estimate is time-based and must never look like a usage alarm.
+  if (official && pct >= c.critPct) item.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
+  else if (official && pct >= c.warnPct) item.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
   else item.backgroundColor = undefined;
 
-  const bucket = pct >= c.critPct ? 'crit' : pct >= c.warnPct ? 'warn' : 'ok';
-  if (bucket !== lastBucket) {
-    lastBucket = bucket;
-    if (bucket === 'crit') vscode.window.showWarningMessage(`Claude usage ${pct}% — resets ${reset}.`, 'Open gauge').then(p => { if (p) vscode.commands.executeCommand('sessionGuardian.gauge.focus'); });
-    else if (bucket === 'warn') vscode.window.showInformationMessage(`Claude usage at ${pct}% — resets ${reset}.`);
+  if (official) {
+    const bucket = pct >= c.critPct ? 'crit' : pct >= c.warnPct ? 'warn' : 'ok';
+    if (bucket !== lastBucket) {
+      lastBucket = bucket;
+      if (bucket === 'crit') vscode.window.showWarningMessage(`Claude usage ${pct}% — resets ${reset}.`, 'Open gauge').then(p => { if (p) vscode.commands.executeCommand('sessionGuardian.gauge.focus'); });
+      else if (bucket === 'warn') vscode.window.showInformationMessage(`Claude usage at ${pct}% — resets ${reset}.`);
+    }
   }
 
   postToView(cur, c, gc);
@@ -169,6 +185,7 @@ function postToView(cur, c, gc) {
     weeklyPct: u && u.weeklyPct != null ? Math.round(u.weeklyPct) : null,
     weeklyReset: u ? hhmm(u.weeklyResetIso) : null,
     source: cur ? cur.source : 'n/a',
+    official: !!(u && u.official === true),
     updated: cur ? hhmm(new Date(cur.at).toISOString()) : '—',
     warnPct: c.warnPct, critPct: c.critPct,
     guardian: {
@@ -246,7 +263,7 @@ function getHtml() {
 <body>
   <div id="app" class="na">Waiting for usage… (runs during Claude Code sessions)</div>
   <script nonce="${nonce}">
-    const green='#3fb950', yellow='#d29922', red='#f85149';
+    const green='#3fb950', yellow='#d29922', red='#f85149', gray='#8b949e';
     const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
     window.addEventListener('message', (e) => {
       const d = e.data; if (d.type !== 'update') return;
@@ -256,9 +273,13 @@ function getHtml() {
       if (d.pct == null) {
         html = '<div class="na">Waiting for usage… (runs during Claude Code sessions)</div>';
       } else {
-        const color = d.pct >= d.critPct ? red : d.pct >= d.warnPct ? yellow : green;
-        html += '<div class="big" style="color:'+color+'">'+d.pct+'%</div>';
-        html += '<div class="sub">5-hour window used'+(d.source==='estimate'?' (estimate)':d.source==='stale'?' (stale)':'')+'</div>';
+        // Yellow/red only for OFFICIAL numbers; the ccusage estimate is time-based and stays neutral gray.
+        const color = d.official ? (d.pct >= d.critPct ? red : d.pct >= d.warnPct ? yellow : green) : gray;
+        const label = d.official
+          ? ('5-hour window used'+(d.source==='stale'?' (stale)':''))
+          : ('time into 5-hour window (estimate — run in a terminal for the real usage number)'+(d.source==='stale'?' (stale)':''));
+        html += '<div class="big" style="color:'+color+'">'+(d.official?'':'~')+d.pct+'%</div>';
+        html += '<div class="sub">'+label+'</div>';
         html += '<div class="track"><div class="fill" style="width:'+d.pct+'%;background:'+color+'"></div></div>';
         html += '<div class="row"><span>resets '+d.reset+'</span><span>'+(d.remaining!=null?('~'+d.remaining+' min left'):'')+'</span></div>';
         if (d.weeklyPct!=null) html += '<div class="wk">7-day: <b>'+d.weeklyPct+'%</b> · resets '+(d.weeklyReset||'?')+'<div class="wtrack"><div class="wfill" style="width:'+d.weeklyPct+'%"></div></div></div>';

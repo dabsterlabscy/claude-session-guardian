@@ -1,5 +1,8 @@
 # Change Log
 
+## 0.4.0
+- Brake and warnings only fire on official rate-limit numbers; the ccusage estimate is now clearly labeled as time-based and never triggers a warning.
+
 ## 0.3.1
 - Marketplace listing: icon, keywords, banner.
 

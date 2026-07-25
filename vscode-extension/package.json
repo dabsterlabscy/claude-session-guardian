@@ -2,7 +2,7 @@
   "name": "session-guardian-statusbar",
   "displayName": "Session Guardian",
   "description": "Shows Claude Code usage + Guardian state (brake, autonomy, recent activity) in the VS Code status bar and a sidebar dashboard.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "dabster-labs",
   "license": "MIT",
   "icon": "media/icon.png",
